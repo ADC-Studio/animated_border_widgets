@@ -1,0 +1,26 @@
+# VCS / IDE
+.git/
+.idea/
+*.iml
+
+# Tooling outputs
+.dart_tool/
+build/
+doc/api/
+
+# Lockfiles for package repositories
+pubspec.lock
+
+# Example generated files
+example/.dart_tool/
+example/build/
+example/.metadata
+example/.idea/
+example/*.iml
+example/pubspec.lock
+
+# Misc
+.env*
+
+# Local README media (keep in repo, exclude from pub package)
+assets/

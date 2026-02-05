@@ -1,13 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
+/// Controller for [AnimatedGradientBorder].
+///
+/// Use [triggerBoost] to request a one-shot temporary acceleration.
 class AnimatedGradientBorderController extends ChangeNotifier {
+  /// Starts a one-shot boost animation in the attached border widget.
   void triggerBoost() {
     notifyListeners();
   }
 }
 
+/// A container-like widget that paints an animated sweep-gradient border.
+///
+/// The border rotates continuously. You can accelerate it briefly with
+/// [AnimatedGradientBorderController.triggerBoost] or keep it accelerated while
+/// pressed with [holdBoostMode].
 class AnimatedGradientBorder extends StatefulWidget {
   const AnimatedGradientBorder({
     required this.child,
@@ -21,18 +31,47 @@ class AnimatedGradientBorder extends StatefulWidget {
     this.innerColor = Colors.white,
     this.boxShadow,
     this.controller,
+    this.holdBoostMode = false,
+    this.holdBoostTurnsPerSecond = 0.35,
   });
 
+  /// The content placed inside the bordered area.
   final Widget child;
+
+  /// Colors used to build the sweep gradient.
+  ///
+  /// Must contain at least 2 colors.
   final List<Color> colors;
+
+  /// Outer border radius.
   final BorderRadius borderRadius;
+
+  /// Border thickness.
   final double borderWidth;
+
+  /// Duration of one full baseline rotation.
   final Duration turnDuration;
+
+  /// Duration of the one-shot boost phase.
   final Duration boostDuration;
+
+  /// Extra rotation amount (in turns) applied during one-shot boost.
   final double boostTurns;
+
+  /// Fill color of the inner content container.
   final Color innerColor;
+
+  /// Optional outer shadows for the whole bordered widget.
   final List<BoxShadow>? boxShadow;
+
+  /// Optional controller to trigger one-shot boost externally.
   final AnimatedGradientBorderController? controller;
+
+  /// Enables accelerated rotation while this flag is true.
+  final bool holdBoostMode;
+
+  /// Additional turns-per-second while [holdBoostMode] is active.
+  final double holdBoostTurnsPerSecond;
 
   @override
   State<AnimatedGradientBorder> createState() =>
@@ -43,8 +82,11 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     with TickerProviderStateMixin {
   late final AnimationController _rotationController;
   late final AnimationController _boostController;
+  late final Ticker _holdBoostTicker;
   late Animation<double> _boostAnimation;
+
   double _phaseShift = 0;
+  Duration? _lastHoldTickElapsed;
 
   @override
   void initState() {
@@ -72,6 +114,11 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
       }
     });
 
+    _holdBoostTicker = createTicker(_onHoldBoostTick);
+    if (widget.holdBoostMode) {
+      _startHoldBoost();
+    }
+
     widget.controller?.addListener(_onControllerEvent);
   }
 
@@ -90,6 +137,14 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
       _boostController.duration = widget.boostDuration;
     }
 
+    if (oldWidget.holdBoostMode != widget.holdBoostMode) {
+      if (widget.holdBoostMode) {
+        _startHoldBoost();
+      } else {
+        _stopHoldBoost();
+      }
+    }
+
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_onControllerEvent);
       widget.controller?.addListener(_onControllerEvent);
@@ -99,9 +154,49 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   @override
   void dispose() {
     widget.controller?.removeListener(_onControllerEvent);
+    _holdBoostTicker.dispose();
     _boostController.dispose();
     _rotationController.dispose();
     super.dispose();
+  }
+
+  void _startHoldBoost() {
+    _lastHoldTickElapsed = null;
+    if (!_holdBoostTicker.isActive) {
+      _holdBoostTicker.start();
+    }
+  }
+
+  void _stopHoldBoost() {
+    _lastHoldTickElapsed = null;
+    if (_holdBoostTicker.isActive) {
+      _holdBoostTicker.stop();
+    }
+  }
+
+  void _onHoldBoostTick(final Duration elapsed) {
+    if (!widget.holdBoostMode) {
+      _stopHoldBoost();
+      return;
+    }
+
+    final previous = _lastHoldTickElapsed;
+    _lastHoldTickElapsed = elapsed;
+    if (previous == null) {
+      return;
+    }
+
+    final deltaMicros = elapsed.inMicroseconds - previous.inMicroseconds;
+    if (deltaMicros <= 0) {
+      return;
+    }
+
+    final deltaSeconds = deltaMicros / 1000000;
+    _phaseShift =
+        (_phaseShift + deltaSeconds * widget.holdBoostTurnsPerSecond) % 1;
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _onControllerEvent() {
@@ -123,6 +218,8 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   Widget build(final BuildContext context) {
     assert(widget.colors.length >= 2,
         'AnimatedGradientBorder requires at least 2 colors.');
+    assert(widget.holdBoostTurnsPerSecond >= 0,
+        'holdBoostTurnsPerSecond must be >= 0.');
 
     final innerRadius = BorderRadius.only(
       topLeft: Radius.circular(

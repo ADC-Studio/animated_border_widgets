@@ -1,16 +1,17 @@
 name: animated_border_widgets_example
 description: Example app for animated_border_widgets.
-publish_to: none
+publish_to: 'none'
+version: 0.0.1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.22.0"
+  sdk: '>=2.17.0 <4.0.0'
+  flutter: '>=3.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   animated_border_widgets:
-    path: ../
+    path: ..
 
 dev_dependencies:
   flutter_test:
