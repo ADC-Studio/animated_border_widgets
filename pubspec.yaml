@@ -1,11 +1,20 @@
 name: animated_border_widgets
-description: Reusable animated gradient border widgets for Flutter UIs.
+description: Animated gradient border widgets for Flutter with tap boost and press-and-hold acceleration support.
 version: 0.1.0
-homepage: https://github.com/mixkage/animated_border_widgets
+homepage: https://github.com/ADC-Studio/animated_border_widgets
+repository: https://github.com/ADC-Studio/animated_border_widgets
+issue_tracker: https://github.com/ADC-Studio/animated_border_widgets/issues
+documentation: https://github.com/ADC-Studio/animated_border_widgets#readme
+topics:
+  - animation
+  - widgets
+  - gradient
+  - border
+  - ui
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.22.0"
+  sdk: '>=2.17.0 <4.0.0'
+  flutter: '>=3.0.0'
 
 dependencies:
   flutter:
@@ -17,3 +26,4 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 flutter:
+
