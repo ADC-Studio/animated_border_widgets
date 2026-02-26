@@ -57,4 +57,62 @@ void main() {
 
     expect(find.byType(AnimatedGradientBorder), findsOneWidget);
   });
+
+  testWidgets('glowEffect true renders without errors', (final tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AnimatedGradientBorder(
+          glowEffect: true,
+          glow: AnimatedGradientBorderGlow(
+            opacity: 0.4,
+            outerStrokeWidth: 10,
+            innerStrokeWidth: 5,
+          ),
+          colors: [Colors.green, Colors.lightGreen],
+          child: SizedBox(width: 120, height: 48),
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(find.byType(AnimatedGradientBorder), findsOneWidget);
+  });
+
+  testWidgets('enabled false supports disabled border rendering',
+      (final tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AnimatedGradientBorder(
+          enabled: false,
+          showBorderWhenDisabled: true,
+          disabledBorderWidth: 2.4,
+          colors: [Colors.indigo, Colors.blue],
+          child: SizedBox(width: 140, height: 50),
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 320));
+
+    expect(find.byType(AnimatedGradientBorder), findsOneWidget);
+  });
+
+  testWidgets('clipChild true renders child widget', (final tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AnimatedGradientBorder(
+          clipChild: true,
+          colors: [Colors.teal, Colors.cyan],
+          child: SizedBox(
+            key: Key('clipped-child'),
+            width: 100,
+            height: 40,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('clipped-child')), findsOneWidget);
+  });
 }

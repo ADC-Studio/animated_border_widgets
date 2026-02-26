@@ -6,7 +6,7 @@
     <h1 align="center">Animated Border Widgets</h1>
     <p align="center">
         <strong>
-        Animated gradient border widgets for Flutter, with smooth continuous rotation, one-shot boost on demand, and optional press-and-hold acceleration mode.
+        Animated gradient border widgets for Flutter with smooth rotation, boost interactions, configurable glowEffect, and fadeable enable/disable states.
         </strong>
     </p>
 
@@ -33,6 +33,11 @@
 - Animated sweep-gradient border
 - One-shot boost via `controller.triggerBoost()`
 - Press-and-hold boost via `holdBoostMode`
+- Optional `glowEffect` with tunable glow constructor
+- Animated on/off via `enabled` + `fadeDuration`
+- Optional disabled static border (`showBorderWhenDisabled`)
+- Optional child clipping (`clipChild`)
+- Seamless gradient loop with `autoCloseGradientLoop`
 - Smooth phase continuity (no jump back after boost)
 - Rounded corners, configurable border width, inner color, and shadows
 
@@ -44,7 +49,7 @@
 
 ```yaml
 dependencies:
-  animated_border_widgets: ^0.1.0
+  animated_border_widgets: ^0.2.0
 ```
 
 ## Quick Start
@@ -96,6 +101,24 @@ class _DemoState extends State<Demo> {
 }
 ```
 
+## Simple glowEffect Example
+
+```dart
+AnimatedGradientBorder(
+  glowEffect: true,
+  colors: const [
+    Color(0xFF2B7FFF),
+    Color(0xFF55D4FF),
+    Color(0xFF9FFFE0),
+    Color(0xFF2B7FFF),
+  ],
+  child: const SizedBox(
+    height: 52,
+    child: Center(child: Text('Glow Effect')),
+  ),
+)
+```
+
 ## Hold Boost Mode
 
 Use `holdBoostMode` for press-and-hold interactions:
@@ -109,25 +132,6 @@ AnimatedGradientBorder(
 )
 ```
 
-## API Overview
-
-- `AnimatedGradientBorder`
-  - `colors`
-  - `borderRadius`
-  - `borderWidth`
-  - `turnDuration`
-  - `boostDuration`
-  - `boostTurns`
-  - `holdBoostMode`
-  - `holdBoostTurnsPerSecond`
-  - `innerColor`
-  - `boxShadow`
-  - `controller`
-- `AnimatedGradientBorderController`
-  - `triggerBoost()`
-
-This keeps images visible in pub.dev README while excluding local `assets/` files from the published package archive.
-
 ## Example
 
 See the complete demo in `example/`:
@@ -136,6 +140,53 @@ See the complete demo in `example/`:
 - Tap boost button
 - Hold boost button
 - Gray border -> animated border reveal on hold
+
+## Full Parameter Set
+
+```dart
+AnimatedGradientBorder(
+  key: const ValueKey('full-config'),
+  child: const SizedBox(height: 52),
+  colors: const [Colors.orange, Colors.yellow],
+  borderRadius: const BorderRadius.all(Radius.circular(16)),
+  borderWidth: 1.8,
+  turnDuration: const Duration(seconds: 7),
+  boostDuration: const Duration(milliseconds: 700),
+  boostTurns: 0.24,
+  innerColor: Colors.white,
+  boxShadow: const [
+    BoxShadow(
+      color: Color(0x22000000),
+      blurRadius: 12,
+      offset: Offset(0, 6),
+    ),
+  ],
+  controller: AnimatedGradientBorderController(),
+  holdBoostMode: false,
+  holdBoostTurnsPerSecond: 0.35,
+  enabled: true,
+  fadeDuration: const Duration(milliseconds: 300),
+  showBorderWhenDisabled: true,
+  disabledBorderColor: const Color(0x33000000),
+  disabledBorderWidth: null, // defaults to borderWidth
+  clipChild: false,
+  autoCloseGradientLoop: true,
+  glowEffect: false,
+  glow: const AnimatedGradientBorderGlow(
+    opacity: 0.55,
+    outerBlurSigma: 18,
+    innerBlurSigma: 8,
+    outerStrokeWidth: 14,
+    innerStrokeWidth: 8,
+    spread: 4,
+    blendMode: BlendMode.srcOver,
+  ),
+)
+```
+
+`AnimatedGradientBorderController`:
+
+- `triggerBoost()`
 
 ## License
 

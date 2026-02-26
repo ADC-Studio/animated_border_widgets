@@ -16,6 +16,7 @@ class TapBoostButton extends StatelessWidget {
         controller: controller,
         borderRadius: BorderRadius.circular(16),
         borderWidth: 1.8,
+        glowEffect: true,
         colors: palette,
         child: SizedBox(
           height: 52,
