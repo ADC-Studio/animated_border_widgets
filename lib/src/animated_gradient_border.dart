@@ -25,6 +25,8 @@ class AnimatedGradientBorderGlow {
     this.innerStrokeWidth = 8,
     this.spread = 4,
     this.blendMode = BlendMode.srcOver,
+    this.fadeDuration = const Duration(milliseconds: 220),
+    this.fadeCurve = Curves.easeOut,
   })  : assert(opacity >= 0 && opacity <= 1, 'opacity must be in [0..1].'),
         assert(outerBlurSigma >= 0, 'outerBlurSigma must be >= 0.'),
         assert(innerBlurSigma >= 0, 'innerBlurSigma must be >= 0.'),
@@ -52,6 +54,12 @@ class AnimatedGradientBorderGlow {
 
   /// Blend mode used by glow paint.
   final BlendMode blendMode;
+
+  /// Duration of glow fade-in and fade-out when [glowEffect] changes.
+  final Duration fadeDuration;
+
+  /// Curve used for glow fade transitions.
+  final Curve fadeCurve;
 }
 
 /// A container-like widget that paints an animated sweep-gradient border.
@@ -163,9 +171,11 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   late final AnimationController _rotationController;
   late final AnimationController _boostController;
   late final AnimationController _visibilityController;
+  late final AnimationController _glowVisibilityController;
   late final Ticker _holdBoostTicker;
   late Animation<double> _boostAnimation;
   late Animation<double> _visibilityAnimation;
+  late Animation<double> _glowVisibilityAnimation;
 
   double _phaseShift = 0;
   Duration? _lastHoldTickElapsed;
@@ -198,6 +208,17 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     _visibilityAnimation = CurvedAnimation(
       parent: _visibilityController,
       curve: Curves.easeInOut,
+    );
+
+    _glowVisibilityController = AnimationController(
+      vsync: this,
+      duration: widget.glow.fadeDuration,
+      value: widget.glowEffect ? 1 : 0,
+    );
+
+    _glowVisibilityAnimation = CurvedAnimation(
+      parent: _glowVisibilityController,
+      curve: widget.glow.fadeCurve,
     );
 
     _boostController.addStatusListener((final status) {
@@ -251,6 +272,23 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
       _visibilityController.duration = widget.fadeDuration;
     }
 
+    if (oldWidget.glow.fadeDuration != widget.glow.fadeDuration) {
+      _glowVisibilityController.duration = widget.glow.fadeDuration;
+    }
+
+    if (oldWidget.glow.fadeCurve != widget.glow.fadeCurve) {
+      _glowVisibilityAnimation = CurvedAnimation(
+        parent: _glowVisibilityController,
+        curve: widget.glow.fadeCurve,
+      );
+    }
+
+    if (oldWidget.glowEffect != widget.glowEffect) {
+      _applyGlowEffectState(animate: true);
+    } else if (!widget.glowEffect && _glowVisibilityController.value != 0) {
+      _applyGlowEffectState(animate: false);
+    }
+
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_onControllerEvent);
       widget.controller?.addListener(_onControllerEvent);
@@ -261,6 +299,7 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   void dispose() {
     widget.controller?.removeListener(_onControllerEvent);
     _holdBoostTicker.dispose();
+    _glowVisibilityController.dispose();
     _visibilityController.dispose();
     _boostController.dispose();
     _rotationController.dispose();
@@ -359,6 +398,25 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     }
   }
 
+  void _applyGlowEffectState({required final bool animate}) {
+    if (widget.glowEffect) {
+      if (animate) {
+        _glowVisibilityController.duration = widget.glow.fadeDuration;
+        _glowVisibilityController.forward();
+      } else {
+        _glowVisibilityController.value = 1;
+      }
+      return;
+    }
+
+    if (animate) {
+      _glowVisibilityController.duration = widget.glow.fadeDuration;
+      _glowVisibilityController.reverse();
+    } else {
+      _glowVisibilityController.value = 0;
+    }
+  }
+
   @override
   Widget build(final BuildContext context) {
     assert(widget.colors.length >= 2,
@@ -366,6 +424,10 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     assert(widget.holdBoostTurnsPerSecond >= 0,
         'holdBoostTurnsPerSecond must be >= 0.');
     assert(widget.borderWidth >= 0, 'borderWidth must be >= 0.');
+    assert(
+      !widget.glow.fadeDuration.isNegative,
+      'glow.fadeDuration must be >= Duration.zero.',
+    );
     assert(
         widget.disabledBorderWidth == null || widget.disabledBorderWidth! >= 0,
         'disabledBorderWidth must be >= 0.');
@@ -398,7 +460,12 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
         ),
         child: AnimatedBuilder(
           animation: Listenable.merge(
-            [_rotationController, _boostController, _visibilityController],
+            [
+              _rotationController,
+              _boostController,
+              _visibilityController,
+              _glowVisibilityController,
+            ],
           ),
           child: content,
           builder: (final context, final child) {
@@ -407,12 +474,15 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
                     _boostAnimation.value * widget.boostTurns) %
                 1;
             final opacity = _visibilityAnimation.value;
+            final glowVisibility = _glowVisibilityAnimation.value;
+            final shouldPaintGlow = glowVisibility > 0;
 
             return CustomPaint(
-              painter: widget.glowEffect
+              painter: shouldPaintGlow
                   ? _AnimatedGradientGlowPainter(
                       turns: turns,
                       opacity: opacity,
+                      glowVisibility: glowVisibility,
                       borderRadius: widget.borderRadius,
                       colors: gradientColors,
                       glow: widget.glow,
@@ -526,6 +596,7 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
   const _AnimatedGradientGlowPainter({
     required this.turns,
     required this.opacity,
+    required this.glowVisibility,
     required this.borderRadius,
     required this.colors,
     required this.glow,
@@ -533,13 +604,16 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
 
   final double turns;
   final double opacity;
+  final double glowVisibility;
   final BorderRadius borderRadius;
   final List<Color> colors;
   final AnimatedGradientBorderGlow glow;
 
   @override
   void paint(final Canvas canvas, final Size size) {
-    final visibleOpacity = (opacity.clamp(0.0, 1.0).toDouble() * glow.opacity)
+    final visibleOpacity = (opacity.clamp(0.0, 1.0).toDouble() *
+            glowVisibility.clamp(0.0, 1.0).toDouble() *
+            glow.opacity)
         .clamp(0.0, 1.0)
         .toDouble();
     if (visibleOpacity <= 0) {
@@ -592,6 +666,7 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
   bool shouldRepaint(covariant final _AnimatedGradientGlowPainter old) {
     return old.turns != turns ||
         old.opacity != opacity ||
+        old.glowVisibility != glowVisibility ||
         old.borderRadius != borderRadius ||
         old.glow.opacity != glow.opacity ||
         old.glow.outerBlurSigma != glow.outerBlurSigma ||
@@ -600,6 +675,8 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
         old.glow.innerStrokeWidth != glow.innerStrokeWidth ||
         old.glow.spread != glow.spread ||
         old.glow.blendMode != glow.blendMode ||
+        old.glow.fadeDuration != glow.fadeDuration ||
+        old.glow.fadeCurve != glow.fadeCurve ||
         !listEquals(old.colors, colors);
   }
 }

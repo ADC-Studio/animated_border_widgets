@@ -132,6 +132,8 @@ AnimatedGradientBorder(
 )
 ```
 
+![Hold boost mode demo with glow](https://raw.githubusercontent.com/ADC-Studio/animated_border_widgets/main/assets/animated_border_widgets_demo_3.gif)
+
 ## Example
 
 See the complete demo in `example/`:
@@ -180,6 +182,8 @@ AnimatedGradientBorder(
     innerStrokeWidth: 8,
     spread: 4,
     blendMode: BlendMode.srcOver,
+    fadeDuration: Duration(milliseconds: 220),
+    fadeCurve: Curves.easeOut,
   ),
 )
 ```
@@ -202,7 +206,7 @@ To get started, read [CONTRIBUTING.md](CONTRIBUTING.md) to learn about the guide
 
 ## Maintainers
 
-[ADC STUDIO](https://adc-web.ru)
+[LOGION](https://logion-web.ru)
 
 [Valerij Shishov](https://github.com/MixKage)
 

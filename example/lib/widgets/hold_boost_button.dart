@@ -33,6 +33,7 @@ class _HoldBoostButtonState extends State<HoldBoostButton> {
         onTapCancel: () => _setPressed(false),
         child: AnimatedGradientBorder(
           holdBoostMode: _isPressed,
+          glowEffect: _isPressed,
           holdBoostTurnsPerSecond: 0.9,
           borderRadius: BorderRadius.circular(16),
           borderWidth: 1.8,

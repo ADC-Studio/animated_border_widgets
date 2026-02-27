@@ -2,6 +2,33 @@ import 'package:animated_border_widgets/animated_border_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _GlowToggleHost extends StatefulWidget {
+  const _GlowToggleHost({super.key});
+
+  @override
+  State<_GlowToggleHost> createState() => _GlowToggleHostState();
+}
+
+class _GlowToggleHostState extends State<_GlowToggleHost> {
+  bool glowEnabled = false;
+
+  void setGlowEnabled(final bool value) {
+    setState(() {
+      glowEnabled = value;
+    });
+  }
+
+  @override
+  Widget build(final BuildContext context) => AnimatedGradientBorder(
+        glowEffect: glowEnabled,
+        glow: const AnimatedGradientBorderGlow(
+          fadeDuration: Duration(milliseconds: 180),
+        ),
+        colors: const [Colors.pink, Colors.orange],
+        child: const SizedBox(width: 120, height: 48),
+      );
+}
+
 void main() {
   testWidgets('renders child widget', (final tester) async {
     await tester.pumpWidget(
@@ -114,5 +141,26 @@ void main() {
     );
 
     expect(find.byKey(const Key('clipped-child')), findsOneWidget);
+  });
+
+  testWidgets('glowEffect toggle with fade does not throw',
+      (final tester) async {
+    final hostKey = GlobalKey<_GlowToggleHostState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _GlowToggleHost(key: hostKey),
+      ),
+    );
+
+    hostKey.currentState!.setGlowEnabled(true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    hostKey.currentState!.setGlowEnabled(false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    expect(find.byType(AnimatedGradientBorder), findsOneWidget);
   });
 }
