@@ -1,4 +1,6 @@
 import 'package:animated_border_widgets/animated_border_widgets.dart';
+// The bundled Material import keeps the example compatible with Flutter 3.22.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 class DemoBottomBarCard extends StatelessWidget {
@@ -51,8 +53,9 @@ class DemoBottomBarCard extends StatelessWidget {
           child: Row(
             children: List.generate(_tabLabels.length, (final index) {
               final isSelected = index == selectedIndex;
-              final color =
-                  isSelected ? const Color(0xFFED7203) : const Color(0xFF777498);
+              final color = isSelected
+                  ? const Color(0xFFED7203)
+                  : const Color(0xFF777498);
               return Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -62,7 +65,9 @@ class DemoBottomBarCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isSelected ? _filledIcons[index] : _outlinedIcons[index],
+                        isSelected
+                            ? _filledIcons[index]
+                            : _outlinedIcons[index],
                         size: 22,
                         color: color,
                       ),

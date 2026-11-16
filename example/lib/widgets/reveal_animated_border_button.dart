@@ -1,4 +1,6 @@
 import 'package:animated_border_widgets/animated_border_widgets.dart';
+// The bundled Material import keeps the example compatible with Flutter 3.22.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 class RevealAnimatedBorderButton extends StatefulWidget {
@@ -14,7 +16,8 @@ class RevealAnimatedBorderButton extends StatefulWidget {
       _RevealAnimatedBorderButtonState();
 }
 
-class _RevealAnimatedBorderButtonState extends State<RevealAnimatedBorderButton> {
+class _RevealAnimatedBorderButtonState
+    extends State<RevealAnimatedBorderButton> {
   bool _isPressed = false;
 
   void _setPressed(final bool value) {

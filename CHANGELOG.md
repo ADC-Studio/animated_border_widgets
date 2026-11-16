@@ -1,3 +1,13 @@
+## 0.2.1
+
+- Repaint animated borders and glow directly without rebuilding or laying out their widget trees on every animation frame.
+- Isolate child content from border repaints with a dedicated repaint boundary.
+- Reuse the sweep-gradient shader across both glow layers and reuse glow paint configuration between frames.
+- Keep the existing two-layer glow, animation controls, fade transitions, and public API.
+- Restore compatibility with the declared Flutter 3.22 minimum by using compatible color APIs.
+- Add regression coverage for animation repaint behavior and lifecycle transitions.
+- Add CI checks on current stable Flutter and Flutter 3.22.3, plus a publication dry run.
+
 ## 0.2.0
 
 - Added configurable `glowEffect` with `AnimatedGradientBorderGlow`.

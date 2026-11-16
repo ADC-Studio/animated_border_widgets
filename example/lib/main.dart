@@ -1,3 +1,5 @@
+// The bundled Material import keeps the example compatible with Flutter 3.22.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 import 'example_page.dart';
