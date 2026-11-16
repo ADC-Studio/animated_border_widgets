@@ -49,7 +49,7 @@
 
 ```yaml
 dependencies:
-  animated_border_widgets: ^0.2.0
+  animated_border_widgets: ^0.2.1
 ```
 
 ## Quick Start
@@ -118,6 +118,28 @@ AnimatedGradientBorder(
   ),
 )
 ```
+
+## Performance
+
+Requires Dart 3.3 or newer and Flutter 3.22 or newer. CI checks the current
+stable Flutter release and Flutter 3.22.3.
+
+Animation updates repaint the border and glow directly. A separate repaint
+boundary isolates child content, so the animation can update without rebuilding
+or laying out the widget tree or repainting the child. The two glow layers share
+one gradient shader per paint.
+
+Glow still draws two blurred strokes on every animated frame. Its raster cost
+grows with the number and size of visible borders and the blur sigma. For long
+lists, use lazy builders, reserve glow for selected items, or reduce
+`outerBlurSigma`, `innerBlurSigma`, and stroke widths. Set `glowEffect: false`
+when glow is unnecessary.
+
+For pages kept mounted while hidden, wrap the inactive subtree in
+`TickerMode(enabled: false, child: ...)` to mute its animation tickers.
+`Offstage` by itself does not pause animations. Profile scrolling and idle
+animation in profile mode on the target device, including both CPU frame work
+and raster frame time.
 
 ## Hold Boost Mode
 

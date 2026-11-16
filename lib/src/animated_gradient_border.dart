@@ -173,11 +173,12 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   late final AnimationController _visibilityController;
   late final AnimationController _glowVisibilityController;
   late final Ticker _holdBoostTicker;
-  late Animation<double> _boostAnimation;
-  late Animation<double> _visibilityAnimation;
-  late Animation<double> _glowVisibilityAnimation;
+  late final CurvedAnimation _boostAnimation;
+  late final CurvedAnimation _visibilityAnimation;
+  late final CurvedAnimation _glowVisibilityAnimation;
+  late final Listenable _repaint;
 
-  double _phaseShift = 0;
+  final ValueNotifier<double> _phaseShift = ValueNotifier(0);
   Duration? _lastHoldTickElapsed;
 
   @override
@@ -221,9 +222,17 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
       curve: widget.glow.fadeCurve,
     );
 
+    _repaint = Listenable.merge([
+      _rotationController,
+      _boostController,
+      _visibilityController,
+      _glowVisibilityController,
+      _phaseShift,
+    ]);
+
     _boostController.addStatusListener((final status) {
       if (status == AnimationStatus.completed) {
-        _phaseShift = (_phaseShift + widget.boostTurns) % 1;
+        _phaseShift.value = (_phaseShift.value + widget.boostTurns) % 1;
         _boostController.value = 0;
       }
     });
@@ -277,10 +286,7 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     }
 
     if (oldWidget.glow.fadeCurve != widget.glow.fadeCurve) {
-      _glowVisibilityAnimation = CurvedAnimation(
-        parent: _glowVisibilityController,
-        curve: widget.glow.fadeCurve,
-      );
+      _glowVisibilityAnimation.curve = widget.glow.fadeCurve;
     }
 
     if (oldWidget.glowEffect != widget.glowEffect) {
@@ -299,6 +305,10 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
   void dispose() {
     widget.controller?.removeListener(_onControllerEvent);
     _holdBoostTicker.dispose();
+    _glowVisibilityAnimation.dispose();
+    _visibilityAnimation.dispose();
+    _boostAnimation.dispose();
+    _phaseShift.dispose();
     _glowVisibilityController.dispose();
     _visibilityController.dispose();
     _boostController.dispose();
@@ -338,11 +348,8 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     }
 
     final deltaSeconds = deltaMicros / 1000000;
-    _phaseShift =
-        (_phaseShift + deltaSeconds * widget.holdBoostTurnsPerSecond) % 1;
-    if (mounted) {
-      setState(() {});
-    }
+    _phaseShift.value =
+        (_phaseShift.value + deltaSeconds * widget.holdBoostTurnsPerSecond) % 1;
   }
 
   void _onControllerEvent() {
@@ -355,8 +362,8 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
     }
 
     if (_boostController.isAnimating) {
-      _phaseShift =
-          (_phaseShift + _boostAnimation.value * widget.boostTurns) % 1;
+      _phaseShift.value =
+          (_phaseShift.value + _boostAnimation.value * widget.boostTurns) % 1;
       _boostController.stop();
       _boostController.value = 0;
     }
@@ -452,107 +459,132 @@ class _AnimatedGradientBorderState extends State<AnimatedGradientBorder>
       child: content,
     );
 
+    final animation = _BorderPaintState(
+      repaint: _repaint,
+      rotation: _rotationController,
+      boost: _boostAnimation,
+      phaseShift: _phaseShift,
+      boostTurns: widget.boostTurns,
+      visibility: _visibilityAnimation,
+      glowVisibility: _glowVisibilityAnimation,
+      colors: gradientColors,
+    );
+
     return RepaintBoundary(
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
           boxShadow: widget.boxShadow,
         ),
-        child: AnimatedBuilder(
-          animation: Listenable.merge(
-            [
-              _rotationController,
-              _boostController,
-              _visibilityController,
-              _glowVisibilityController,
-            ],
+        child: CustomPaint(
+          painter: _AnimatedGradientGlowPainter(
+            animation: animation,
+            borderRadius: widget.borderRadius,
+            glow: widget.glow,
           ),
-          child: content,
-          builder: (final context, final child) {
-            final turns = (_rotationController.value +
-                    _phaseShift +
-                    _boostAnimation.value * widget.boostTurns) %
-                1;
-            final opacity = _visibilityAnimation.value;
-            final glowVisibility = _glowVisibilityAnimation.value;
-            final shouldPaintGlow = glowVisibility > 0;
-
-            return CustomPaint(
-              painter: shouldPaintGlow
-                  ? _AnimatedGradientGlowPainter(
-                      turns: turns,
-                      opacity: opacity,
-                      glowVisibility: glowVisibility,
-                      borderRadius: widget.borderRadius,
-                      colors: gradientColors,
-                      glow: widget.glow,
-                    )
-                  : null,
-              foregroundPainter: _AnimatedGradientBorderPainter(
-                turns: turns,
-                opacity: opacity,
-                borderWidth: widget.borderWidth,
-                borderRadius: widget.borderRadius,
-                colors: gradientColors,
-                showBorderWhenDisabled: widget.showBorderWhenDisabled,
-                disabledBorderColor: widget.disabledBorderColor,
-                disabledBorderWidth:
-                    widget.disabledBorderWidth ?? widget.borderWidth,
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(widget.borderWidth),
-                child: child,
-              ),
-            );
-          },
+          foregroundPainter: _AnimatedGradientBorderPainter(
+            animation: animation,
+            borderWidth: widget.borderWidth,
+            borderRadius: widget.borderRadius,
+            showBorderWhenDisabled: widget.showBorderWhenDisabled,
+            disabledBorderColor: widget.disabledBorderColor,
+            disabledBorderWidth:
+                widget.disabledBorderWidth ?? widget.borderWidth,
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(widget.borderWidth),
+            // Keep the content's display list while the surrounding halo and
+            // foreground stroke repaint. Preserve their original paint order.
+            child: RepaintBoundary(child: content),
+          ),
         ),
       ),
     );
   }
 }
 
+class _BorderPaintState {
+  _BorderPaintState({
+    required this.repaint,
+    required this.rotation,
+    required this.boost,
+    required this.phaseShift,
+    required this.boostTurns,
+    required this.visibility,
+    required this.glowVisibility,
+    required this.colors,
+  });
+
+  final Listenable repaint;
+  final Animation<double> rotation;
+  final Animation<double> boost;
+  final ValueListenable<double> phaseShift;
+  final double boostTurns;
+  final Animation<double> visibility;
+  final Animation<double> glowVisibility;
+  final List<Color> colors;
+
+  Rect? _shaderRect;
+  double? _shaderTurns;
+  Shader? _shader;
+
+  Shader shader(final Rect rect) {
+    final turns =
+        (rotation.value + phaseShift.value + boost.value * boostTurns) % 1;
+    if (_shaderRect != rect || _shaderTurns != turns) {
+      _shaderRect = rect;
+      _shaderTurns = turns;
+      _shader = SweepGradient(
+        colors: colors,
+        transform: GradientRotation(turns * math.pi * 2),
+      ).createShader(rect);
+    }
+    return _shader!;
+  }
+}
+
 class _AnimatedGradientBorderPainter extends CustomPainter {
-  const _AnimatedGradientBorderPainter({
-    required this.turns,
-    required this.opacity,
+  _AnimatedGradientBorderPainter({
+    required this.animation,
     required this.borderWidth,
     required this.borderRadius,
-    required this.colors,
     required this.showBorderWhenDisabled,
     required this.disabledBorderColor,
     required this.disabledBorderWidth,
-  });
+  }) : super(repaint: animation.repaint);
 
-  final double turns;
-  final double opacity;
+  final _BorderPaintState animation;
   final double borderWidth;
   final BorderRadius borderRadius;
-  final List<Color> colors;
   final bool showBorderWhenDisabled;
   final Color disabledBorderColor;
   final double disabledBorderWidth;
 
+  final Paint _stroke = Paint()
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true;
+  final Paint _baseStroke = Paint()
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true;
+
   @override
   void paint(final Canvas canvas, final Size size) {
     final rect = Offset.zero & size;
-    final visibleOpacity = opacity.clamp(0.0, 1.0).toDouble();
+    final visibleOpacity =
+        animation.visibility.value.clamp(0.0, 1.0).toDouble();
 
     if (showBorderWhenDisabled && disabledBorderWidth > 0) {
       final baseAlpha = (1 - visibleOpacity).clamp(0.0, 1.0).toDouble();
       if (baseAlpha > 0) {
-        final baseStroke = Paint()
-          ..style = PaintingStyle.stroke
+        _baseStroke
           ..strokeWidth = disabledBorderWidth
-          ..isAntiAlias = true
-          ..color = disabledBorderColor.withValues(
-            alpha:
-                (disabledBorderColor.a * baseAlpha).clamp(0.0, 1.0).toDouble(),
-          );
+          ..color = disabledBorderColor
+          ..colorFilter = _opacityFilter(baseAlpha);
 
         final baseRRect = borderRadius.toRRect(
           rect.deflate(disabledBorderWidth * 0.5),
         );
-        canvas.drawRRect(baseRRect, baseStroke);
+        canvas.drawRRect(baseRRect, _baseStroke);
       }
     }
 
@@ -560,63 +592,66 @@ class _AnimatedGradientBorderPainter extends CustomPainter {
       return;
     }
 
-    final shader = SweepGradient(
-      colors: colors,
-      transform: GradientRotation(turns * math.pi * 2),
-    ).createShader(rect);
-
-    final stroke = Paint()
-      ..shader = shader
-      ..style = PaintingStyle.stroke
+    _stroke
+      ..shader = animation.shader(rect)
       ..strokeWidth = borderWidth
-      ..isAntiAlias = true
-      ..colorFilter = ColorFilter.mode(
-        Colors.white.withValues(alpha: visibleOpacity),
-        BlendMode.modulate,
-      );
+      ..colorFilter = _opacityFilter(visibleOpacity);
 
     final rrect = borderRadius.toRRect(rect.deflate(borderWidth * 0.5));
-    canvas.drawRRect(rrect, stroke);
+    canvas.drawRRect(rrect, _stroke);
   }
 
   @override
   bool shouldRepaint(covariant final _AnimatedGradientBorderPainter old) {
-    return old.turns != turns ||
-        old.opacity != opacity ||
+    return old.animation != animation ||
         old.borderWidth != borderWidth ||
         old.borderRadius != borderRadius ||
         old.showBorderWhenDisabled != showBorderWhenDisabled ||
         old.disabledBorderColor != disabledBorderColor ||
-        old.disabledBorderWidth != disabledBorderWidth ||
-        !listEquals(old.colors, colors);
+        old.disabledBorderWidth != disabledBorderWidth;
   }
 }
 
 class _AnimatedGradientGlowPainter extends CustomPainter {
-  const _AnimatedGradientGlowPainter({
-    required this.turns,
-    required this.opacity,
-    required this.glowVisibility,
+  _AnimatedGradientGlowPainter({
+    required this.animation,
     required this.borderRadius,
-    required this.colors,
     required this.glow,
-  });
+  }) : super(repaint: animation.repaint) {
+    _outerPaint
+      ..strokeWidth = glow.outerStrokeWidth
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.outerBlurSigma)
+      ..blendMode = glow.blendMode;
+    _innerPaint
+      ..strokeWidth = glow.innerStrokeWidth
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.innerBlurSigma)
+      ..blendMode = glow.blendMode;
+  }
 
-  final double turns;
-  final double opacity;
-  final double glowVisibility;
+  final _BorderPaintState animation;
   final BorderRadius borderRadius;
-  final List<Color> colors;
   final AnimatedGradientBorderGlow glow;
+
+  final Paint _outerPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true;
+  final Paint _innerPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true;
+
+  @override
+  bool hitTest(final Offset position) => animation.glowVisibility.value > 0;
 
   @override
   void paint(final Canvas canvas, final Size size) {
-    final visibleOpacity = (opacity.clamp(0.0, 1.0).toDouble() *
-            glowVisibility.clamp(0.0, 1.0).toDouble() *
-            glow.opacity)
-        .clamp(0.0, 1.0)
-        .toDouble();
-    if (visibleOpacity <= 0) {
+    final visibleOpacity =
+        (animation.visibility.value.clamp(0.0, 1.0).toDouble() *
+                animation.glowVisibility.value.clamp(0.0, 1.0).toDouble() *
+                glow.opacity)
+            .clamp(0.0, 1.0)
+            .toDouble();
+    if (visibleOpacity <= 0 ||
+        (glow.outerStrokeWidth <= 0 && glow.innerStrokeWidth <= 0)) {
       return;
     }
 
@@ -624,49 +659,26 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
     final glowRect = rect.inflate(glow.spread);
     final glowRRect = borderRadius.toRRect(glowRect);
 
-    Shader shader() => SweepGradient(
-          colors: colors,
-          transform: GradientRotation(turns * math.pi * 2),
-        ).createShader(rect);
+    final shader = animation.shader(rect);
 
     if (glow.outerStrokeWidth > 0) {
-      final outerPaint = Paint()
-        ..shader = shader()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = glow.outerStrokeWidth
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.outerBlurSigma)
-        ..isAntiAlias = true
-        ..blendMode = glow.blendMode
-        ..colorFilter = ColorFilter.mode(
-          Colors.white.withValues(
-            alpha: (visibleOpacity * 0.45).clamp(0.0, 1.0).toDouble(),
-          ),
-          BlendMode.modulate,
-        );
-      canvas.drawRRect(glowRRect, outerPaint);
+      _outerPaint
+        ..shader = shader
+        ..colorFilter = _opacityFilter(visibleOpacity * 0.45);
+      canvas.drawRRect(glowRRect, _outerPaint);
     }
 
     if (glow.innerStrokeWidth > 0) {
-      final innerPaint = Paint()
-        ..shader = shader()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = glow.innerStrokeWidth
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.innerBlurSigma)
-        ..isAntiAlias = true
-        ..blendMode = glow.blendMode
-        ..colorFilter = ColorFilter.mode(
-          Colors.white.withValues(alpha: visibleOpacity),
-          BlendMode.modulate,
-        );
-      canvas.drawRRect(glowRRect, innerPaint);
+      _innerPaint
+        ..shader = shader
+        ..colorFilter = _opacityFilter(visibleOpacity);
+      canvas.drawRRect(glowRRect, _innerPaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant final _AnimatedGradientGlowPainter old) {
-    return old.turns != turns ||
-        old.opacity != opacity ||
-        old.glowVisibility != glowVisibility ||
+    return old.animation != animation ||
         old.borderRadius != borderRadius ||
         old.glow.opacity != glow.opacity ||
         old.glow.outerBlurSigma != glow.outerBlurSigma ||
@@ -676,10 +688,16 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
         old.glow.spread != glow.spread ||
         old.glow.blendMode != glow.blendMode ||
         old.glow.fadeDuration != glow.fadeDuration ||
-        old.glow.fadeCurve != glow.fadeCurve ||
-        !listEquals(old.colors, colors);
+        old.glow.fadeCurve != glow.fadeCurve;
   }
 }
+
+ColorFilter _opacityFilter(final double opacity) => ColorFilter.mode(
+      // Color.lerp preserves fractional alpha on current Flutter versions and
+      // is also available at the package's minimum supported Flutter version.
+      Color.lerp(const Color(0x00FFFFFF), Colors.white, opacity)!,
+      BlendMode.modulate,
+    );
 
 List<Color> _resolveGradientColors(
   final List<Color> colors,

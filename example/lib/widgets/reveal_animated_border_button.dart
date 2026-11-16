@@ -14,7 +14,8 @@ class RevealAnimatedBorderButton extends StatefulWidget {
       _RevealAnimatedBorderButtonState();
 }
 
-class _RevealAnimatedBorderButtonState extends State<RevealAnimatedBorderButton> {
+class _RevealAnimatedBorderButtonState
+    extends State<RevealAnimatedBorderButton> {
   bool _isPressed = false;
 
   void _setPressed(final bool value) {
