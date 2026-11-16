@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 /// Controller for [AnimatedGradientBorder].
 ///
@@ -77,7 +77,7 @@ class AnimatedGradientBorder extends StatefulWidget {
     this.turnDuration = const Duration(seconds: 7),
     this.boostDuration = const Duration(milliseconds: 700),
     this.boostTurns = 0.24,
-    this.innerColor = Colors.white,
+    this.innerColor = const Color(0xFFFFFFFF),
     this.boxShadow,
     this.controller,
     this.holdBoostMode = false,
@@ -695,7 +695,7 @@ class _AnimatedGradientGlowPainter extends CustomPainter {
 ColorFilter _opacityFilter(final double opacity) => ColorFilter.mode(
       // Color.lerp preserves fractional alpha on current Flutter versions and
       // is also available at the package's minimum supported Flutter version.
-      Color.lerp(const Color(0x00FFFFFF), Colors.white, opacity)!,
+      Color.lerp(const Color(0x00FFFFFF), const Color(0xFFFFFFFF), opacity)!,
       BlendMode.modulate,
     );
 
